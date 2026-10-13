@@ -9,11 +9,11 @@
 
 核心 Skill 可產出製作規劃；成片渲染依賴另外的執行器，不因 Fork 就有雲端生成或自動發布。
 
-工坊 Fork：上游產品／授權來源為 [Hao0321/ai-short-drama](https://github.com/Hao0321/ai-short-drama)；本次協作的 Issue／PR 送到 **FreeTWAI-AI/ai-short-drama**，不是自動送往上游。
+工坊 Fork：上游產品／授權來源為 [Hao0321/ai-short-drama](https://github.com/Hao0321/ai-short-drama)；本次協作的 Issue／PR 送到 **FreeTWAI/ai-short-drama**，不是自動送往上游。
 
-程式／內容入口：[SKILL.md](SKILL.md)、[scripts/drama_lint.py](scripts/drama_lint.py)、[scripts/studio_lint.py](scripts/studio_lint.py)、[examples/](examples/)、[references/](references/)。協作先讀 [CONTRIBUTING.md](CONTRIBUTING.md)，讓 Agent 讀 [AGENTS.md](AGENTS.md)；從[本倉 Issues](https://github.com/FreeTWAI-AI/ai-short-drama/issues)認領、[查看既有 PR](https://github.com/FreeTWAI-AI/ai-short-drama/pulls)避免重工。
+程式／內容入口：[SKILL.md](SKILL.md)、[scripts/drama_lint.py](scripts/drama_lint.py)、[scripts/studio_lint.py](scripts/studio_lint.py)、[examples/](examples/)、[references/](references/)。協作先讀 [CONTRIBUTING.md](CONTRIBUTING.md)，讓 Agent 讀 [AGENTS.md](AGENTS.md)；從[本倉 Issues](https://github.com/FreeTWAI/ai-short-drama/issues)認領、[查看既有 PR](https://github.com/FreeTWAI/ai-short-drama/pulls)避免重工。
 
-原創劇本、授權素材與具日期模型能力分開保存。私人 Bible／角色／肖像素材不送平台；中央只連可公開成果與 repo。 跨 repo 的協定由[中央平台](https://github.com/FreeTWAI-AI/freedom-platform)維護。
+原創劇本、授權素材與具日期模型能力分開保存。私人 Bible／角色／肖像素材不送平台；中央只連可公開成果與 repo。 跨 repo 的協定由[中央平台](https://github.com/FreeTWAI/freedom-platform)維護。
 <!-- freedom-repository-guide:end -->
 
 > 把「假廢物真強者、重生、系統、隱藏大佬、逆襲」從題材標籤，編譯成有起承轉合、角色一致性、每集爽點與追更鉤子的 AI 短劇系統。
