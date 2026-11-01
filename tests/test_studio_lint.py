@@ -146,6 +146,34 @@ class StudioLintTests(unittest.TestCase):
         report = STUDIO_LINT.lint(plan, studio_ready=True)
         self.assertTrue(any("must be contiguous" in item.message for item in report.errors))
 
+    def test_rejects_path_traversal(self) -> None:
+        plan = valid_plan()
+        plan["outputs"]["draft_path"] = "../secret.json"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("without directory traversal" in item.message for item in report.errors))
+
+        plan["outputs"]["draft_path"] = "valid.json"
+        plan["outputs"]["asset_inbox"] = "/etc/passwd"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("without directory traversal" in item.message for item in report.errors))
+
+    def test_rejects_infinite_bounds(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["target_duration_seconds"] = float('inf')
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a positive number" in item.message for item in report.errors))
+
+        plan = valid_plan()
+        plan["timeline"][0]["start_seconds"] = float('nan')
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-negative finite number" in item.message for item in report.errors))
+
+    def test_rejects_excessively_long_strings(self) -> None:
+        plan = valid_plan()
+        plan["outputs"]["editor_handoff"] = "a" * 10001
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
     def test_schema_is_valid_json(self) -> None:
         schema_path = ROOT / "scripts" / "studio_plan.schema.json"
         with schema_path.open(encoding="utf-8") as stream:
