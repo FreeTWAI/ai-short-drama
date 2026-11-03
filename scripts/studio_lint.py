@@ -13,7 +13,6 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -29,34 +28,34 @@ FORMAT_CONTRACTS = {
 }
 
 
-@dataclass
 class Finding:
-    level: str
-    path: str
-    message: str
+    __slots__ = ("level", "path", "message")
+
+    def __init__(self, level: str, path: str, message: str) -> None:
+        self.level = level
+        self.path = path
+        self.message = message
 
 
 class Report:
     def __init__(self) -> None:
         self.findings: list[Finding] = []
+        self.errors: list[Finding] = []
+        self.warnings: list[Finding] = []
 
     def error(self, path: str, message: str) -> None:
-        self.findings.append(Finding("error", path, message))
+        finding = Finding("error", path, message)
+        self.findings.append(finding)
+        self.errors.append(finding)
 
     def warning(self, path: str, message: str) -> None:
-        self.findings.append(Finding("warning", path, message))
-
-    @property
-    def errors(self) -> list[Finding]:
-        return [item for item in self.findings if item.level == "error"]
-
-    @property
-    def warnings(self) -> list[Finding]:
-        return [item for item in self.findings if item.level == "warning"]
+        finding = Finding("warning", path, message)
+        self.findings.append(finding)
+        self.warnings.append(finding)
 
 
 def nonempty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+    return isinstance(value, str) and bool(value and not value.isspace())
 
 
 def positive_number(value: Any) -> bool:
@@ -471,7 +470,10 @@ def emit(report: Report, as_json: bool) -> None:
             "valid": not report.errors,
             "error_count": len(report.errors),
             "warning_count": len(report.warnings),
-            "findings": [asdict(item) for item in report.findings],
+            "findings": [
+                {"level": item.level, "path": item.path, "message": item.message}
+                for item in report.findings
+            ],
         }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
