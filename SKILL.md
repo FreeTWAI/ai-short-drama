@@ -9,7 +9,7 @@ description: 設計、編劇、製作與迭代爆款 AI 短劇／漫劇／仿真
 
 當使用者要求「全部你來」「一鍵做短劇」「100% 自動化」「從題目到成片」「自動續跑」時，啟用 **Auto mode**：先讀 [automation.md](references/automation.md) 並執行 dependency gate。若已安裝 `video-autopilot/drama_autopilot.py` 或相容執行器，就建立可恢復專案並在登入／付費／能力不符／合規阻擋與最終公開發布以外自行推進；若未安裝，仍須交付 schema-valid production pack、生成佇列與剪輯 handoff，將狀態標成 `waiting_for_executor`，不可聲稱已產生 `current.mp4`。
 
-Auto mode 先建立 [studio-workflow.md](references/studio-workflow.md) 定義的 `studio-plan.json`，並通過 `studio_lint.py --studio-ready`；production pack 再符合 [production_pack.schema.json](scripts/production_pack.schema.json)，並通過 `drama_lint.py --production-ready`。前者控制片型、模型能力、資產與時間線，後者控制故事與連載契約；兩層都通過才可編譯生成任務。缺少選配成片執行器時仍交付兩份已驗證契約與 handoff，不聲稱已有成片。
+Auto mode 先建立 [studio-workflow.md](references/studio-workflow.md) 定義的 `studio-plan.json`，並通過 `studio_lint.py --studio-ready` 以確保 studio readiness（控制片型、模型能力、資產與時間線）；production pack 再符合 [production_pack.schema.json](scripts/production_pack.schema.json)，並通過 `drama_lint.py --production-ready` 以確保 production readiness（控制故事與連載契約）。兩層都通過才可編譯生成任務。缺少選配成片執行器時仍交付兩份已驗證契約與 handoff，不聲稱已有成片。
 
 ## 1. 邊界與跨 Skill 路由
 
@@ -136,7 +136,7 @@ State Delta：本集結束後，世界有哪些事永久改變
 執行：
 
 ```powershell
-python scripts/studio_lint.py studio-plan.json --studio-ready
+python scripts/studio_lint.py studio-plan.json --studio-ready --json
 ```
 
 ### Step 8 — 編譯 Production Pack

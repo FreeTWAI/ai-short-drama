@@ -57,16 +57,23 @@ git clone https://github.com/Hao0321/ai-short-drama.git ~/.claude/skills/ai-shor
 
 這個公開版本不包含作者的私人系列 Bible、角色資產或未公開故事設定。
 
-## 驗證
+## 驗證與 API 使用
 
 ```bash
+# 檢查語法
 python -m py_compile scripts/drama_lint.py scripts/studio_lint.py
-python scripts/drama_lint.py --help
-python scripts/studio_lint.py examples/studio-plan.example.json --studio-ready
+
+# 驗證 Studio Plan (檢查片型、模型能力、資產鎖與時間線)
+python scripts/studio_lint.py examples/studio-plan.example.json --studio-ready --json
+
+# 驗證 Production Pack (檢查敘事與連載契約)
+# python scripts/drama_lint.py production-pack.json --production-ready --json
+
+# 執行測試
 python -m unittest discover -s tests -v
 ```
 
-`scripts/studio_plan.schema.json` 與 `scripts/studio_lint.py` 檢查片型、模型能力、資產鎖與時間線；`scripts/production_pack.schema.json` 與 `scripts/drama_lint.py` 檢查敘事與連載契約。詳細流程見 [Studio Workflow](references/studio-workflow.md)。
+`scripts/studio_plan.schema.json` 與 `scripts/studio_lint.py` 檢查片型、模型能力、資產鎖與時間線（控制 studio readiness）；`scripts/production_pack.schema.json` 與 `scripts/drama_lint.py` 檢查敘事與連載契約（控制 production readiness）。詳細流程見 [Studio Workflow](references/studio-workflow.md)。
 
 ## 研究與原創邊界
 
