@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -56,13 +57,20 @@ class Report:
 
 
 def nonempty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+    if not isinstance(value, str):
+        return False
+    if "\x00" in value:
+        return False
+    if len(value) > 10000:
+        return False
+    return bool(value.strip())
 
 
 def positive_number(value: Any) -> bool:
     return (
         isinstance(value, (int, float))
         and not isinstance(value, bool)
+        and math.isfinite(value)
         and value > 0
     )
 
@@ -313,8 +321,8 @@ def validate_timeline(
 
         start = raw.get("start_seconds")
         duration = raw.get("duration_seconds")
-        if not isinstance(start, (int, float)) or isinstance(start, bool) or start < 0:
-            report.error(f"{path}.start_seconds", "must be a non-negative number")
+        if not isinstance(start, (int, float)) or isinstance(start, bool) or not math.isfinite(start) or start < 0:
+            report.error(f"{path}.start_seconds", "must be a non-negative finite number")
             start = expected_start
         if not positive_number(duration):
             report.error(f"{path}.duration_seconds", "must be a positive number")
@@ -420,6 +428,14 @@ def validate_outputs(outputs: dict[str, Any], report: Report) -> None:
             "outputs.prompt_mode",
             "must be long_timeline, shot_by_shot, or both",
         )
+    for path_key in ("draft_path", "asset_inbox"):
+        path_val = outputs.get(path_key)
+        if isinstance(path_val, str):
+            if path_val.startswith("/") or ".." in path_val:
+                report.error(
+                    f"outputs.{path_key}",
+                    "must be a safe relative path without directory traversal",
+                )
 
 
 def lint(data: Any, studio_ready: bool) -> Report:

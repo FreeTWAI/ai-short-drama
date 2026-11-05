@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass, asdict
@@ -49,7 +50,13 @@ class Report:
 
 
 def nonempty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+    if not isinstance(value, str):
+        return False
+    if "\x00" in value:
+        return False
+    if len(value) > 10000:
+        return False
+    return bool(value.strip())
 
 
 def require_object(parent: dict[str, Any], key: str, report: Report) -> dict[str, Any]:
@@ -80,8 +87,8 @@ def validate_project(project: dict[str, Any], episode_count: int, report: Report
     require_fields(project, ["title", "market", "format"], "project", report)
 
     duration = project.get("episode_duration_seconds")
-    if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0:
-        report.error("project.episode_duration_seconds", "must be a positive number")
+    if not isinstance(duration, (int, float)) or isinstance(duration, bool) or not math.isfinite(duration) or duration <= 0:
+        report.error("project.episode_duration_seconds", "must be a positive finite number")
 
     planned = project.get("planned_episodes")
     if not isinstance(planned, int) or isinstance(planned, bool) or planned <= 0:
