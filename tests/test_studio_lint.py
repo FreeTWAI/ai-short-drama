@@ -121,6 +121,104 @@ def valid_plan() -> dict:
 
 
 class StudioLintTests(unittest.TestCase):
+
+    def test_rejects_top_level_not_dict(self) -> None:
+        report = STUDIO_LINT.lint([], studio_ready=True)
+        self.assertTrue(any("top-level JSON value must be an object" in item.message for item in report.errors))
+
+    def test_invalid_format_profile(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["id"] = "unknown_format"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("unknown format profile" in item.message for item in report.errors))
+
+    def test_format_mismatch(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["story_scope"] = "wrong_scope"
+        plan["format_profile"]["shot_strategy"] = "wrong_strategy"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("requires single_high_impact_moment" in item.message for item in report.errors))
+        self.assertTrue(any("requires one_take" in item.message for item in report.errors))
+
+    def test_viral_one_take_duration_warning(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["target_duration_seconds"] = 35
+        plan["model_capability"]["max_duration_seconds"] = 40
+        plan["timeline"][0]["duration_seconds"] = 35
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("may be carrying a full story" in item.message for item in report.warnings))
+
+    def test_invalid_capability_status(self) -> None:
+        plan = valid_plan()
+        plan["model_capability"]["status"] = "invalid_status"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be verified or unverified" in item.message for item in report.errors))
+
+    def test_invalid_asset_kind_and_recurrence(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["kind"] = "invalid_kind"
+        plan["assets"][0]["recurrence"] = "invalid_recurrence"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("unknown asset kind" in item.message for item in report.errors))
+        self.assertTrue(any("must be recurring or one_off" in item.message for item in report.errors))
+
+    def test_missing_voice_anchor_recurring_character(self) -> None:
+        plan = valid_plan()
+        del plan["assets"][0]["voice_anchor"]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("required for a recurring character" in item.message for item in report.errors))
+
+    def test_unverified_consent_recurring_character(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["consent_status"] = "not_applicable"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be verified for a recurring character voice" in item.message for item in report.errors))
+
+    def test_empty_timeline(self) -> None:
+        plan = valid_plan()
+        plan["timeline"] = []
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must contain at least one shot or beat" in item.message for item in report.errors))
+
+    def test_invalid_grid_moment_timeline_length(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["id"] = "grid_moment"
+        plan["format_profile"]["shot_strategy"] = "grid"
+        plan["timeline"] = plan["timeline"][:1]  # Only 1 panel
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("grid_moment must contain 2 to 24 panels" in item.message for item in report.errors))
+
+    def test_unknown_location_asset(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["location_id"] = "loc_unknown"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("unknown location asset" in item.message for item in report.errors))
+
+    def test_unknown_character_speaker(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][1]["dialogue"][0]["speaker_id"] = "char_unknown"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("unknown character" in item.message for item in report.errors))
+
+    def test_invalid_transition_one_take(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["transition"] = "continuous"  # First beat should be none
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("one-take formats require none on the first beat" in item.message for item in report.errors))
+
+    def test_variation_policy_disabled_shuffle_bag(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["shuffle_bag"] = False
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("disabled; batch presets may repeat" in item.message for item in report.warnings))
+
+    def test_variation_policy_zero_avoid_recent(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["avoid_recent"] = 0
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("zero allows immediate preset repetition" in item.message for item in report.warnings))
+
+
     def test_valid_studio_ready_plan(self) -> None:
         report = STUDIO_LINT.lint(valid_plan(), studio_ready=True)
         self.assertEqual([], report.errors)
