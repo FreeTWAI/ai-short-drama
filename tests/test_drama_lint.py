@@ -98,6 +98,114 @@ def valid_pack() -> dict:
 
 
 class DramaLintTests(unittest.TestCase):
+
+    def test_rejects_top_level_not_dict(self) -> None:
+        report = DRAMA_LINT.lint([], production_ready=True)
+        self.assertTrue(any("top-level JSON value must be an object" in item.message for item in report.errors))
+
+    def test_missing_required_objects(self) -> None:
+        pack = valid_pack()
+        pack["project"] = "not an object"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_missing_required_lists(self) -> None:
+        pack = valid_pack()
+        pack["episodes"] = "not a list"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_invalid_project_duration_planned(self) -> None:
+        pack = valid_pack()
+        pack["project"]["episode_duration_seconds"] = -1
+        pack["project"]["planned_episodes"] = 2
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be a positive number" in item.message for item in report.errors))
+        self.assertTrue(any("smaller than the 3 supplied episodes" in item.message for item in report.errors))
+
+    def test_invalid_project_planned_type(self) -> None:
+        pack = valid_pack()
+        pack["project"]["planned_episodes"] = "3"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be a positive integer" in item.message for item in report.errors))
+
+    def test_identical_public_hidden_identity(self) -> None:
+        pack = valid_pack()
+        pack["premise_contract"]["hidden_truth"] = pack["premise_contract"]["public_identity"]
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("identical to public_identity" in item.message for item in report.warnings))
+
+    def test_duplicate_entity_id(self) -> None:
+        pack = valid_pack()
+        pack["characters"].append(pack["characters"][0])
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("duplicate id" in item.message for item in report.errors))
+
+    def test_invalid_entity_id_format(self) -> None:
+        pack = valid_pack()
+        pack["characters"][0]["id"] = "Invalid_ID_123"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must use lowercase ASCII" in item.message for item in report.errors))
+
+    def test_invalid_episode_id_format(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["id"] = "episode_01"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must match ep_001" in item.message for item in report.errors))
+
+    def test_duplicate_episode_id(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][1]["id"] = "ep_001"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("duplicate episode id" in item.message for item in report.errors))
+
+    def test_missing_payoff_and_progress(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["payoff"] = ""
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must include a non-empty payoff or progress" in item.message for item in report.errors))
+
+    def test_duplicate_debt_id_opened(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"].append({"id": "save_cat", "due_episode": 3})
+        pack["episodes"][0]["debts_opened"].append({"id": "save_cat", "due_episode": 3})
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("debt already opened" in item.message for item in report.errors))
+
+    def test_invalid_debt_due_episode(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][1]["debts_opened"].append({"id": "new_debt", "due_episode": 1})
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("cannot be earlier than the episode" in item.message for item in report.errors))
+
+    def test_debt_due_exceeds_planned(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"].append({"id": "long_debt", "due_episode": 4})
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("cannot exceed planned_episodes" in item.message for item in report.errors))
+
+    def test_debt_paid_multiple_times(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"].append({"id": "debt1", "due_episode": 3})
+        pack["episodes"][1]["debts_paid"].append("debt1")
+        pack["episodes"][2]["debts_paid"].append("debt1")
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("debt paid more than once" in item.message for item in report.errors))
+
+    def test_debt_paid_unknown(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_paid"].append("unknown_debt")
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("pays unknown debt" in item.message for item in report.errors))
+
+    def test_debt_paid_late_warning(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"].append({"id": "debt1", "due_episode": 1})
+        pack["episodes"][1]["debts_paid"].append("debt1")
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("pays debt after its due episode" in item.message for item in report.warnings))
+
+
     def test_valid_production_ready_pack(self) -> None:
         report = DRAMA_LINT.lint(valid_pack(), production_ready=True)
         self.assertEqual([], report.errors)
