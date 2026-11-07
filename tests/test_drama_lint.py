@@ -249,6 +249,72 @@ class DramaLintTests(unittest.TestCase):
         DRAMA_LINT.lint(pack, production_ready=True)
         self.assertEqual(original, pack)
 
+    def test_invalid_episode_id_type(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["id"] = 123
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
+    def test_missing_character_array(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["characters"] = "char_01"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an array of entity ids" in item.message for item in report.errors))
+
+    def test_missing_state_delta_array(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["state_delta"] = "Discovers time power"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_invalid_debts_opened_type(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"] = {}
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_invalid_debts_opened_item(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["debts_opened"] = ["not a dict"]
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an object with id and due_episode" in item.message for item in report.errors))
+
+    def test_invalid_debts_paid_item(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][1]["debts_paid"] = [123]
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
+    def test_invalid_episode_item(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0] = "not a dict"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_missing_voice_anchor_in_production(self) -> None:
+        pack = valid_pack()
+        del pack["characters"][0]["voice_anchor"]
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("required in --production-ready mode" in item.message for item in report.errors))
+
+    def test_invalid_entity_item(self) -> None:
+        pack = valid_pack()
+        pack["characters"][0] = "not a dict"
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_invalid_entity_id_empty(self) -> None:
+        pack = valid_pack()
+        pack["characters"][0]["id"] = ""
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
+    def test_missing_characters_in_production(self) -> None:
+        pack = valid_pack()
+        pack["episodes"][0]["characters"] = []
+        report = DRAMA_LINT.lint(pack, production_ready=True)
+        self.assertTrue(any("must not be empty in --production-ready mode" in item.message for item in report.errors))
+
 
 if __name__ == "__main__":
     unittest.main()

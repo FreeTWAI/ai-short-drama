@@ -256,6 +256,143 @@ class StudioLintTests(unittest.TestCase):
         STUDIO_LINT.lint(plan, studio_ready=True)
         self.assertEqual(original, plan)
 
+    def test_invalid_format_profile_type(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["target_duration_seconds"] = "not a number"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a positive number" in item.message for item in report.errors))
+
+    def test_invalid_model_capability_limits(self) -> None:
+        plan = valid_plan()
+        plan["model_capability"]["max_duration_seconds"] = "not a number"
+        plan["model_capability"]["max_reference_assets"] = -1
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a positive number" in item.message for item in report.errors))
+        self.assertTrue(any("must be a non-negative integer" in item.message for item in report.errors))
+
+    def test_missing_assets_array(self) -> None:
+        plan = valid_plan()
+        plan["assets"] = "not an array"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_asset_not_object(self) -> None:
+        plan = valid_plan()
+        plan["assets"] = ["not a dict"]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_missing_asset_string(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["id"] = ""
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
+    def test_invalid_asset_reference_files(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["reference_files"] = "not an array"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_invalid_asset_reference_files_item(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["reference_files"] = [123]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-empty string" in item.message for item in report.errors))
+
+    def test_missing_visual_anchor_and_refs_studio_ready(self) -> None:
+        plan = valid_plan()
+        del plan["assets"][0]["visual_anchor"]
+        plan["assets"][0]["reference_files"] = []
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("required for a recurring asset" in item.message for item in report.errors))
+
+    def test_missing_identity_views_studio_ready(self) -> None:
+        plan = valid_plan()
+        plan["assets"][0]["identity_views"] = "not an array"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_timeline_item_not_object(self) -> None:
+        plan = valid_plan()
+        plan["timeline"] = ["not an object"]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_invalid_timeline_id(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["id"] = "Invalid_ID_123!"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must use lowercase ASCII" in item.message for item in report.errors))
+
+    def test_duplicate_timeline_id(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][1]["id"] = plan["timeline"][0]["id"]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("duplicate timeline id" in item.message for item in report.errors))
+
+    def test_invalid_timeline_start_and_duration_types(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["start_seconds"] = "not a number"
+        plan["timeline"][0]["duration_seconds"] = "not a number"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-negative number" in item.message for item in report.errors))
+        self.assertTrue(any("must be a positive number" in item.message for item in report.errors))
+
+    def test_timeline_duration_exceeds_model(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["duration_seconds"] = 15
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("exceeds model limit" in item.message for item in report.errors))
+
+    def test_invalid_timeline_arrays(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][0]["entity_ids"] = "not an array"
+        plan["timeline"][0]["dialogue"] = "not an array"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an array" in item.message for item in report.errors))
+
+    def test_invalid_dialogue_item(self) -> None:
+        plan = valid_plan()
+        plan["timeline"][1]["dialogue"][0] = "not a dict"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an object" in item.message for item in report.errors))
+
+    def test_viral_one_take_duration_exceeds_max(self) -> None:
+        plan = valid_plan()
+        plan["format_profile"]["target_duration_seconds"] = 15
+        plan["timeline"][0]["duration_seconds"] = 15
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("one-take duration 15s exceeds model limit 10s" in item.message for item in report.errors))
+
+    def test_invalid_variation_policy_seed(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["seed"] = "not an int"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be an integer" in item.message for item in report.errors))
+
+    def test_invalid_variation_policy_dimensions(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["dimensions"] = []
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-empty array" in item.message for item in report.errors))
+
+        plan["variation_policy"]["dimensions"] = [""]
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must contain non-empty strings" in item.message for item in report.errors))
+
+    def test_invalid_variation_policy_shuffle_bag(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["shuffle_bag"] = "not a bool"
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a boolean" in item.message for item in report.errors))
+
+    def test_invalid_variation_policy_avoid_recent(self) -> None:
+        plan = valid_plan()
+        plan["variation_policy"]["avoid_recent"] = -1
+        report = STUDIO_LINT.lint(plan, studio_ready=True)
+        self.assertTrue(any("must be a non-negative integer" in item.message for item in report.errors))
+
 
 if __name__ == "__main__":
     unittest.main()
