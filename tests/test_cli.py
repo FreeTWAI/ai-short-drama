@@ -159,6 +159,17 @@ class TestCLIE2E(unittest.TestCase):
         self.assertTrue(data["valid"])
         self.assertEqual(data["error_count"], 0)
 
+    def test_drama_lint_json_output_invalid(self):
+        invalid_data = dict(self.valid_drama_pack)
+        invalid_data["episodes"] = "not an array"
+        stdin_data = json.dumps(invalid_data)
+        result = self._run_script(self.drama_lint, ["-", "--json"], stdin=stdin_data)
+        self.assertEqual(result.returncode, 1)
+        data = json.loads(result.stdout)
+        self.assertFalse(data["valid"])
+        self.assertGreater(data["error_count"], 0)
+        self.assertTrue(any("must be an array" in item["message"] for item in data["findings"]))
+
     def test_studio_lint_valid_file(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as f:
             json.dump(self.valid_studio_plan, f)
@@ -197,6 +208,18 @@ class TestCLIE2E(unittest.TestCase):
         data = json.loads(result.stdout)
         self.assertTrue(data["valid"])
         self.assertEqual(data["error_count"], 0)
+
+    def test_studio_lint_json_output_invalid(self):
+        invalid_data = dict(self.valid_studio_plan)
+        invalid_data["assets"] = "not an array"
+        stdin_data = json.dumps(invalid_data)
+        result = self._run_script(self.studio_lint, ["-", "--json"], stdin=stdin_data)
+        self.assertEqual(result.returncode, 1)
+        data = json.loads(result.stdout)
+        self.assertFalse(data["valid"])
+        self.assertGreater(data["error_count"], 0)
+        self.assertTrue(any("must be an array" in item["message"] for item in data["findings"]))
+
 
 if __name__ == "__main__":
     unittest.main()
