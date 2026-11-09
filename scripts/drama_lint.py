@@ -13,7 +13,6 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any
 
@@ -22,34 +21,34 @@ EPISODE_ID = re.compile(r"^ep_(\d+)$")
 ENTITY_ID = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-@dataclass
 class Finding:
-    level: str
-    path: str
-    message: str
+    __slots__ = ("level", "path", "message")
+
+    def __init__(self, level: str, path: str, message: str) -> None:
+        self.level = level
+        self.path = path
+        self.message = message
 
 
 class Report:
     def __init__(self) -> None:
         self.findings: list[Finding] = []
+        self.errors: list[Finding] = []
+        self.warnings: list[Finding] = []
 
     def error(self, path: str, message: str) -> None:
-        self.findings.append(Finding("error", path, message))
+        finding = Finding("error", path, message)
+        self.findings.append(finding)
+        self.errors.append(finding)
 
     def warning(self, path: str, message: str) -> None:
-        self.findings.append(Finding("warning", path, message))
-
-    @property
-    def errors(self) -> list[Finding]:
-        return [item for item in self.findings if item.level == "error"]
-
-    @property
-    def warnings(self) -> list[Finding]:
-        return [item for item in self.findings if item.level == "warning"]
+        finding = Finding("warning", path, message)
+        self.findings.append(finding)
+        self.warnings.append(finding)
 
 
 def nonempty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+    return isinstance(value, str) and bool(value and not value.isspace())
 
 
 def require_object(parent: dict[str, Any], key: str, report: Report) -> dict[str, Any]:
@@ -174,10 +173,11 @@ def validate_reference_list(
     if production_ready and not values:
         report.error(f"{path}.{key}", "must not be empty in --production-ready mode")
     for index, value in enumerate(values):
-        item_path = f"{path}.{key}[{index}]"
         if not nonempty_string(value):
+            item_path = f"{path}.{key}[{index}]"
             report.error(item_path, "must be a non-empty string")
         elif value not in valid_ids:
+            item_path = f"{path}.{key}[{index}]"
             report.error(item_path, f"unknown {key[:-1]} id: {value}")
 
 
@@ -209,26 +209,31 @@ def validate_debt_arrays(
         report.error(f"{path}.debts_opened", "must be an array")
     else:
         for index, raw in enumerate(opened):
-            debt_path = f"{path}.debts_opened[{index}]"
             if not isinstance(raw, dict):
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(debt_path, "must be an object with id and due_episode")
                 continue
             debt_id = raw.get("id")
             due = raw.get("due_episode")
             if not nonempty_string(debt_id):
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(f"{debt_path}.id", "must be a non-empty string")
                 continue
             if debt_id in openings:
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(f"{debt_path}.id", f"debt already opened: {debt_id}")
             if not isinstance(due, int) or isinstance(due, bool):
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(f"{debt_path}.due_episode", "must be an integer")
                 continue
             if due < episode_number:
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(
                     f"{debt_path}.due_episode",
                     "cannot be earlier than the episode that opens the debt",
                 )
             if planned and due > planned:
+                debt_path = f"{path}.debts_opened[{index}]"
                 report.error(
                     f"{debt_path}.due_episode",
                     f"cannot exceed planned_episodes ({planned})",
@@ -240,11 +245,11 @@ def validate_debt_arrays(
         report.error(f"{path}.debts_paid", "must be an array of debt ids")
     else:
         for index, debt_id in enumerate(paid):
-            pay_path = f"{path}.debts_paid[{index}]"
             if not nonempty_string(debt_id):
+                pay_path = f"{path}.debts_paid[{index}]"
                 report.error(pay_path, "must be a non-empty string")
                 continue
-            payments.append((debt_id, episode_number, pay_path))
+            payments.append((debt_id, episode_number, f"{path}.debts_paid[{index}]"))
 
 
 def validate_episodes(
@@ -374,7 +379,10 @@ def emit(report: Report, as_json: bool) -> None:
             "valid": not report.errors,
             "error_count": len(report.errors),
             "warning_count": len(report.warnings),
-            "findings": [asdict(item) for item in report.findings],
+            "findings": [
+                {"level": item.level, "path": item.path, "message": item.message}
+                for item in report.findings
+            ],
         }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
